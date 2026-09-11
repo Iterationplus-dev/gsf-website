@@ -26,8 +26,15 @@ Deliberately excluded:
 
 ## 2. Server requirements
 
-- PHP **8.3 or newer** (8.4 recommended) with `pdo_mysql`, `mbstring`, `openssl`,
-  `curl`, `fileinfo`, `gd`, `zip` and `intl`
+- PHP **8.3 or newer** with `pdo_mysql`, `mbstring`, `openssl`, `curl`,
+  `fileinfo`, `gd`, `zip` and `intl`
+
+  `composer.json` pins `config.platform.php` to `8.3.0`, so dependencies always
+  resolve to versions that run on 8.3 regardless of the PHP version on the
+  machine that builds the release. Without that pin, building on 8.4 silently
+  locks Symfony 8, which requires PHP >= 8.4.1 and fails on an 8.3 host with
+  *"Your Composer dependencies require a PHP version >= 8.4.1"*. If you later
+  move to a host with 8.4, raise the pin deliberately rather than removing it.
 - MySQL 8 or MariaDB 10.6+
 - The ability to run cron jobs (cPanel → Cron Jobs)
 
