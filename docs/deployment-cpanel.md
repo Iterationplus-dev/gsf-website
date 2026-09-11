@@ -264,13 +264,60 @@ to see what has and has not been applied.
    rather than returning 404, the document root points at the application
    directory instead of `public/`. Fix Section 3 before anything else — the
    environment file is being served to the public.
-5. **A PHP version mismatch.** `Your Composer dependencies require a PHP
-   version >= 8.4.1` means the release was built on a newer PHP than the server
-   runs. See the note in Section 2.
+5. **A PHP version mismatch.** Two different messages, two different causes:
+
+   - *`... require a PHP version >= 8.4.1`* — the release was built on a newer
+     PHP than the server runs. Rebuild with `config.platform.php` pinned, as
+     described in Section 2.
+   - *`... require a PHP version >= 8.3.0`* — the server itself is below 8.3.
+     **This cannot be worked around.** `laravel/framework` v13 requires
+     `php ^8.3`, so there is no set of dependency versions that runs on 8.2.
+     The PHP version has to be raised. See Section 11.
 
 ---
 
-## 11. Redeploying
+## 11. When the server is running PHP older than 8.3
+
+`php-check.php` ships alongside the archive. Upload it to the document root,
+open it in a browser, and it reports the PHP version the **web server** is
+actually using, which extensions are missing, and whether the writable
+directories are writable. **Delete it once you are done** — it is a diagnostic,
+not part of the application.
+
+If it reports a version below 8.3:
+
+1. **cPanel → MultiPHP Manager.** Tick the domain, choose PHP 8.3 or newer from
+   the dropdown, and click Apply. Reload `php-check.php`.
+2. **If the version has not changed**, something is overriding MultiPHP. The
+   usual culprit is a handler line in `.htaccess` — in the document root, or in
+   a parent directory:
+
+   ```apache
+   AddHandler application/x-httpd-ea-php82 .php
+   ```
+
+   Remove or update that line. cPanel sometimes writes it when the PHP version
+   is changed through an older interface.
+3. **If 8.3 is not offered at all**, the hosting plan's EasyApache build does
+   not include it and only the host can add it. Ask them to install
+   `ea-php83`; it is a standard package and the request is routine.
+
+### The command line is a separate setting
+
+cPanel selects the web and CLI PHP versions independently. `php -v` over SSH
+commonly reports an older build than the site is served with, which means
+`php artisan migrate` can fail with this same message while the site itself is
+fine. Call the versioned binary explicitly:
+
+```bash
+/usr/local/bin/ea-php83 artisan migrate --force
+```
+
+Use that same binary in the cron entries in Section 7.
+
+---
+
+## 12. Redeploying
 
 For subsequent releases, upload over the application directory but leave
 `.env`, `storage/` and `public/storage` alone, then:
