@@ -10,6 +10,7 @@ app/storage/
 # Laravel 5 & Lumen specific
 public/storage
 public/hot
+/public/js/filament
 
 # Laravel 5 & Lumen specific with changed public path
 public_html/storage
@@ -23,8 +24,36 @@ Homestead.json
 .phpunit.result.cache
 
 /public/build
+/public/css/filament
+/public/fonts/filament
 /storage/pail
 .env.backup
 .env.production
 .phpactor.json
 auth.json
+
+# Legacy website archive.
+# Kept locally as the source for content and media migration, but never
+# committed: backup/application/config/database.php contains the previous
+# hosting account's plaintext database credentials, and the directory must
+# never reach the production document root either.
+/backup
+
+# Editor and OS noise.
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Agent and tooling scratch.
+/.claude
+/.phpunit.cache
+
+# Deployment artefacts built from the working tree. These are produced on
+# demand and would otherwise be committed as large binary blobs.
+/deploy
+/*.zip

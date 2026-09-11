@@ -1,0 +1,279 @@
+@import 'tailwindcss';
+
+@source '../../app/Livewire/**/*.php';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+/*
+| Design tokens
+|--------------------------------------------------------------------------
+| The palette is derived from the organisation's logo: a deep forest green
+| botanical mark and red wording on white. Green carries the brand, red is
+| reserved for emphasis and the primary giving action so that it keeps its
+| force, and the neutrals are warm rather than blue-grey so photography of
+| people and place sits naturally on the page.
+|
+| Contrast: ink, muted, primary-700 and accent-700 all exceed 4.5:1 on both
+| canvas and surface; white on primary-700 and on accent-700 does the same.
+*/
+@theme {
+    --font-sans: 'DM Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-serif: 'Source Serif 4', ui-serif, Georgia, 'Times New Roman', serif;
+
+    --color-primary-50: #ecf7f1;
+    --color-primary-100: #d3ede0;
+    --color-primary-200: #a8dbc2;
+    --color-primary-300: #74c29e;
+    --color-primary-400: #45a67c;
+    --color-primary-500: #24875f;
+    --color-primary-600: #146b4a;
+    --color-primary-700: #0f5539;
+    --color-primary-800: #0c432d;
+    --color-primary-900: #08301f;
+
+    --color-accent-50: #fdecec;
+    --color-accent-100: #fad5d3;
+    --color-accent-300: #ef8781;
+    --color-accent-500: #d93025;
+    --color-accent-600: #c0221b;
+    --color-accent-700: #9b1b15;
+
+    --color-canvas: #faf8f4;
+    --color-surface: #ffffff;
+    --color-sunken: #f2efe8;
+    --color-ink: #1c1b18;
+    --color-muted: #57534a;
+    --color-line: #e4e0d7;
+
+    --color-success-600: #157347;
+    --color-warning-600: #b45309;
+    --color-error-600: #b42318;
+    --color-info-600: #1d4e89;
+
+    --radius-card: 0.75rem;
+
+    --shadow-card: 0 1px 2px rgb(28 27 24 / 0.04), 0 8px 24px -12px rgb(28 27 24 / 0.12);
+    --shadow-raised: 0 2px 4px rgb(28 27 24 / 0.05), 0 16px 40px -16px rgb(28 27 24 / 0.18);
+}
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+    }
+
+    body {
+        background-color: var(--color-canvas);
+        color: var(--color-ink);
+        font-family: var(--font-sans);
+        -webkit-font-smoothing: antialiased;
+        text-underline-offset: 0.2em;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+        font-family: var(--font-serif);
+        font-weight: 600;
+        letter-spacing: -0.015em;
+        text-wrap: balance;
+    }
+
+    /* A focus ring that is always visible against both the canvas and dark
+       sections, because keyboard users need it most where contrast is worst. */
+    :focus-visible {
+        outline: 3px solid var(--color-accent-500);
+        outline-offset: 2px;
+        border-radius: 2px;
+    }
+
+    /* Alpine-controlled elements must not flash before Alpine boots. */
+    [x-cloak] {
+        display: none !important;
+    }
+
+    /* Images reserve their space to keep cumulative layout shift at zero. */
+    img {
+        height: auto;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        html {
+            scroll-behavior: auto;
+        }
+
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }
+
+        .zoomable:hover img,
+        .zoomable:focus-within img {
+            transform: none;
+        }
+    }
+}
+
+@layer components {
+    /* Skip link: off-screen until focused, then anchored to the top-left. */
+    .skip-link {
+        @apply sr-only;
+    }
+
+    .skip-link:focus {
+        @apply not-sr-only fixed top-4 left-4 z-50 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white;
+    }
+
+    /* Tailwind 4 cannot @apply a class defined in the same layer, so the shared
+       button geometry is declared once across the whole family. */
+    .btn,
+    .btn-primary,
+    .btn-secondary,
+    .btn-outline,
+    .btn-ghost-light {
+        @apply inline-flex items-center justify-center gap-2 rounded-md px-5 py-3 text-sm font-semibold transition-colors;
+    }
+
+    .btn-primary {
+        @apply bg-accent-600 text-white hover:bg-accent-700;
+    }
+
+    .btn-secondary {
+        @apply bg-primary-700 text-white hover:bg-primary-800;
+    }
+
+    .btn-outline {
+        @apply border border-primary-700 text-primary-700 hover:bg-primary-50;
+    }
+
+    .btn-ghost-light {
+        @apply border border-white/40 text-white hover:bg-white/10;
+    }
+
+    .field-label {
+        @apply mb-1.5 block text-sm font-medium text-ink;
+    }
+
+    /* iOS Safari zooms the whole page when a focused field's text is under
+       16px, and does not zoom back out. Every text control therefore holds at
+       16px on phones and may drop to the smaller UI size from `sm` up. */
+    .field-input {
+        @apply w-full rounded-md border border-line bg-surface px-3.5 py-2.5 text-base text-ink placeholder:text-muted/60 focus:border-primary-600 focus:ring-0 sm:text-sm;
+    }
+
+    .field-error {
+        @apply mt-1.5 flex items-start gap-1.5 text-sm font-medium text-error-600;
+    }
+
+    .card {
+        @apply rounded-card border border-line bg-surface shadow-card;
+    }
+
+    .eyebrow {
+        @apply text-xs font-semibold tracking-[0.14em] uppercase;
+    }
+
+    /* A soft halo behind the mark. Two stacked drop-shadows read as light rather
+       than as an outline, and the filter follows the logo's circular alpha
+       instead of boxing it. */
+    .logo-glow {
+        filter:
+            drop-shadow(0 0 4px rgb(20 107 74 / 0.35))
+            drop-shadow(0 0 12px rgb(20 107 74 / 0.22));
+        transition: filter 350ms ease;
+    }
+
+    a:hover .logo-glow,
+    a:focus-visible .logo-glow {
+        filter:
+            drop-shadow(0 0 6px rgb(20 107 74 / 0.55))
+            drop-shadow(0 0 18px rgb(36 135 95 / 0.4));
+    }
+
+    /* On the dark footer a green halo disappears into the background, so the
+       light there is warm white instead. */
+    .logo-glow-on-dark {
+        filter:
+            drop-shadow(0 0 5px rgb(255 255 255 / 0.35))
+            drop-shadow(0 0 16px rgb(168 219 194 / 0.3));
+    }
+
+    /* Gallery thumbnails lift towards the viewer on hover. The frame clips the
+       overflow, so only the photograph moves. */
+    .zoomable img {
+        transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: transform;
+    }
+
+    .zoomable:hover img,
+    .zoomable:focus-within img {
+        transform: scale(1.08);
+    }
+
+    /* Long-form editorial body copy rendered from the CMS. */
+    .prose-gsf {
+        @apply text-[1.0625rem] leading-relaxed text-muted;
+    }
+
+    .prose-gsf > * + * {
+        @apply mt-5;
+    }
+
+    .prose-gsf h2 {
+        @apply mt-10 text-2xl text-ink;
+    }
+
+    .prose-gsf h3 {
+        @apply mt-8 text-xl text-ink;
+    }
+
+    .prose-gsf ul {
+        @apply list-disc space-y-2 pl-6;
+    }
+
+    .prose-gsf ol {
+        @apply list-decimal space-y-2 pl-6;
+    }
+
+    .prose-gsf a {
+        @apply font-medium text-primary-700 underline decoration-primary-300 hover:decoration-primary-700;
+    }
+
+    .prose-gsf strong {
+        @apply font-semibold text-ink;
+    }
+
+    .prose-gsf blockquote {
+        @apply border-l-4 border-primary-200 pl-5 font-serif text-xl text-ink italic;
+    }
+}
+
+/* Keep the current page and its parent menu visible without relying on hover. */
+header nav [data-active="true"],
+header nav a[aria-current],
+header a[aria-label="Search the website"][aria-current] {
+    background-color: var(--color-primary-50);
+    color: var(--color-primary-700);
+    box-shadow: inset 0 -3px 0 var(--color-primary-700);
+}
+
+header nav a[aria-current] > span:first-child {
+    color: var(--color-primary-700);
+    text-decoration: underline;
+    text-underline-offset: 0.25em;
+}
+
+header a.btn-primary[aria-current] {
+    outline: 2px solid var(--color-primary-700);
+    outline-offset: 3px;
+}
+
+footer a[aria-current] {
+    color: white;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 0.25em;
+}
