@@ -90,14 +90,20 @@
                 <h2 id="map-heading" class="text-2xl text-ink">Find us</h2>
 
                 @if (config('foundation.maps_enabled') && config('foundation.maps_key'))
-                    <div class="mt-5 overflow-hidden rounded-card border border-line">
-                        <iframe
-                            title="Map showing the Global Support Foundation office in Port Harcourt, Rivers State, Nigeria"
-                            src="https://www.google.com/maps/embed/v1/place?key={{ config('foundation.maps_key') }}&q={{ $mapQuery }}"
-                            width="100%" height="420" style="border:0"
-                            loading="lazy" referrerpolicy="no-referrer-when-downgrade"
-                            allowfullscreen></iframe>
-                    </div>
+                    {{-- Held behind functional consent: the embed is a Google
+                         request that can set cookies. Declining leaves the
+                         address and the link below, which is enough to find us. --}}
+                    <x-consent-embed
+                        class="mt-5 h-[420px]"
+                        category="functional"
+                        provider="Google Maps"
+                        title="Map showing the Global Support Foundation office in Port Harcourt, Rivers State, Nigeria"
+                        :src="'https://www.google.com/maps/embed/v1/place?key='.config('foundation.maps_key').'&q='.$mapQuery"
+                        :href="'https://www.google.com/maps/search/?api=1&query='.$mapQuery"
+                        referrerpolicy="no-referrer-when-downgrade"
+                    />
+
+                    <p class="mt-3 text-sm text-muted">{{ $addressLines->implode(', ') }}</p>
                 @else
                     {{-- Without a configured API key, link out rather than embed:
                          a broken grey box is worse than an honest link. --}}

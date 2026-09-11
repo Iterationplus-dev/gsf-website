@@ -331,8 +331,51 @@ class ContentSeeder extends Seeder
                 <p>We share donation details with our payment provider to the extent needed to take the payment, and with our email provider to send you an acknowledgement. We do not sell personal information, and we do not send donor details to analytics services.</p>
                 <h2>Your choices</h2>
                 <p>Every newsletter email carries an unsubscribe link. You may ask us for a copy of the information we hold about you, ask us to correct it, or ask us to erase it, by writing to the contact address on this website.</p>
+                <h2>Cookies</h2>
+                <p>Nothing beyond the cookies this site needs to function is loaded until you agree to it. What each category covers, and how to change your mind, is set out in the <a href="/cookie-policy">cookie policy</a>.</p>
                 <h2>Retention</h2>
                 <p>Donation records are kept for as long as financial record-keeping requires. Enquiries are kept while they are being handled and for a reasonable period afterwards. Newsletter records are kept until you unsubscribe.</p>
+                HTML,
+        ]);
+
+        $this->published('page', 'cookie-policy', [
+            'title' => 'Cookie Policy',
+            'excerpt' => 'What this website stores in your browser, why, and how to change what you allow.',
+            'position' => 11,
+            'review_notes' => 'Describes the cookies this website actually sets and the three third parties it can load. Revisit whenever an integration is added or removed, and raise the consent version in resources/ts/consent.ts at the same time so visitors are asked again.',
+            'body' => <<<'HTML'
+                <h2>What a cookie is</h2>
+                <p>A cookie is a small file a website stores in your browser. Some are needed for the site to work at all. Others are optional, and this site loads none of them until you have said it may.</p>
+                <h2>Your choice comes first</h2>
+                <p>Optional scripts and embedded content are not requested while you have not agreed to them. They are held back in the page rather than merely hidden, so no request reaches the third party and it cannot set anything in your browser. If you decline, nothing optional is ever loaded.</p>
+                <h2>Strictly necessary</h2>
+                <p>These cannot be switched off, because without them the site cannot serve a page or keep a form secure.</p>
+                <ul>
+                    <li><strong>Session.</strong> Identifies your visit so that a form you are part-way through, and any message shown after you submit it, belong to you. It expires when you close your browser or after a period of inactivity.</li>
+                    <li><strong>Security token.</strong> Proves that a form was submitted from this site and not by another site acting in your name.</li>
+                    <li><strong>Your cookie choice.</strong> Records the decision you made here so that you are not asked again. It lasts six months.</li>
+                </ul>
+                <h2>Functional</h2>
+                <p>Features that need a third party in order to work.</p>
+                <ul>
+                    <li><strong>Google Maps</strong>, on the contact page. Declining leaves the office address and a link that opens it in your own map application, which sets nothing.</li>
+                </ul>
+                <h2>Analytics</h2>
+                <p>Aggregated measurement of which pages are read, so that the foundation can tell what its work reaches.</p>
+                <ul>
+                    <li><strong>Plausible Analytics</strong>, where it is configured. It records page views in aggregate. No personal information, and no donation detail of any kind, is passed to it.</li>
+                </ul>
+                <h2>Marketing</h2>
+                <p>Embedded content from services that may advertise.</p>
+                <ul>
+                    <li><strong>YouTube</strong>, for the videos on the home page. YouTube may set advertising and preference cookies once a player has loaded, so the videos remain still previews until you allow it. Each preview also links to the video on YouTube, which you can open instead.</li>
+                </ul>
+                <h2>Payments</h2>
+                <p>Card details are handled entirely by our payment provider and never reach this website. The provider is contacted only at the point you choose to give, and what it stores is governed by its own policy.</p>
+                <h2>Changing your mind</h2>
+                <p>Select <strong>Cookie settings</strong> at the foot of any page to reopen your preferences. Withdrawing a category clears the cookies it was responsible for and reloads the page without it. You can also delete cookies through your browser's own settings, though doing so removes the record of your choice and this site will ask again.</p>
+                <h2>When we will ask again</h2>
+                <p>Your decision stands for six months. We will also ask again if the categories change, or if a new third party is added to one of them, so that an agreement given before something existed is never treated as agreement to it.</p>
                 HTML,
         ]);
     }

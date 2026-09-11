@@ -12,15 +12,38 @@ are not needed on the server.**
 
 ## 1. What the archive contains, and what it does not
 
+The archive is a **`.tar.gz`**, not a zip. That is deliberate: a zip stores no
+Unix permission bits, and building one on Windows is what caused the unreadable
+`vendor/` file behind a previous silent 500. See Section 6. cPanel's File
+Manager extracts `.tar.gz` exactly as readily as `.zip`.
+
 Included: application source, `vendor/`, `public/build/` (compiled CSS, JS and
-self-hosted fonts), and empty writable directories.
+self-hosted fonts), empty writable directories, and these helpers at the top
+level:
+
+| File | Purpose |
+| --- | --- |
+| `DEPLOY-CPANEL.md` | this guide |
+| `production.env.template` | the environment file to copy and fill in |
+| `set-permissions.sh` | applies production permissions (shell) |
+| `fix-permissions.php` | the same, for accounts without shell — **delete after use** |
+| `php-check.php` | diagnostic for a failed deployment — **delete after use** |
 
 Deliberately excluded:
 
 - **`.env`** — never leaves the developer machine. You create it on the server.
 - **`backup/`** — the legacy website archive. It contains the previous hosting
   account's plaintext database credentials and must never reach a web server.
+- **`bootstrap/cache/`** contents — a config or route cache built on the build
+  machine records that machine's absolute paths. The server builds its own in
+  Section 5.
 - `tests/`, `node_modules/`, `.git/`, and development-only packages.
+
+Rebuild it at any time with:
+
+```bash
+bash tools/build-deployment-archive.sh
+```
 
 ---
 
@@ -87,7 +110,16 @@ adjusted `index.php`.
 
 ## 4. Create the environment file
 
-Copy `.env.example` to `.env` and fill it in. The values that matter:
+Copy the template the archive ships — it is already filled in for production,
+carries no secrets, and every key in it is verified against `config/`:
+
+```bash
+cp production.env.template .env
+chmod 600 .env
+php artisan key:generate
+```
+
+Then fill in the values marked `FILL IN`. The ones that matter:
 
 ```dotenv
 APP_NAME="Global Support Foundation"
@@ -105,27 +137,40 @@ MAIL_MAILER=smtp
 MAIL_HOST=<smtp host>
 MAIL_USERNAME=<mailbox>
 MAIL_PASSWORD=<password>
+MAIL_PORT=465
+MAIL_SCHEME=smtps
 MAIL_FROM_ADDRESS=info@globalsupportfoundation.org
+ADMIN_NOTIFICATION_EMAIL=info@globalsupportfoundation.org
 
 CLOUDINARY_CLOUD_NAME=dt6xndtv
 CLOUDINARY_API_KEY=<key>
 CLOUDINARY_API_SECRET=<secret>
-FOUNDATION_MEDIA_DRIVER=cloudinary
+MEDIA_DRIVER=cloudinary
 
 PAYSTACK_SECRET_KEY=<live key>
 DONATIONS_ENABLED=true
 ```
 
-Three of these are easy to get wrong:
+Four of these are easy to get wrong:
 
 - **`APP_DEBUG=false`.** With it on, a stack trace — including environment
   values — is shown to anyone who triggers an error.
 - **`APP_URL`.** Canonical URLs, Open Graph tags, the sitemap and every signed
   link (donation receipts, newsletter confirmations) are built from it. A wrong
   value silently produces wrong canonicals and broken receipt links.
-- **`FOUNDATION_MEDIA_DRIVER=cloudinary`.** Existing images already record their
+- **`MEDIA_DRIVER=cloudinary`.** Existing images already record their
   own disk and will resolve either way; this governs where *new* uploads go.
   Left as `public`, uploads land on local disk and are lost on the next deploy.
+- **`MAIL_SCHEME=smtps`**, not `MAIL_ENCRYPTION`. This Laravel version ignores
+  `MAIL_ENCRYPTION` entirely, so a mailbox on port 465 configured with it fails
+  to connect and no acknowledgement, receipt or newsletter confirmation is ever
+  delivered. For STARTTLS on port 587, use `MAIL_PORT=587` and leave
+  `MAIL_SCHEME` empty.
+
+There is no cookie-consent setting. Consent is handled entirely in the browser
+and stored in the visitor's own cookie; nothing needs configuring for it, and
+turning analytics on or off is simply a matter of whether `PLAUSIBLE_DOMAIN` is
+set.
 
 ---
 
@@ -158,13 +203,66 @@ the server needs outbound HTTPS for that command.
 
 ## 6. Permissions
 
+On cPanel, PHP and Apache both run as the account's own user. The owner
+therefore needs write access and nobody else needs any:
+
+| Path | Mode | Meaning |
+| --- | --- | --- |
+| Directories | `755` | owner writes; others traverse and read |
+| Files | `644` | owner writes; others read |
+| `artisan`, `vendor/bin/*` | `755` | executable |
+| `.env` | `600` | owner only — nothing else may read the secrets |
+
+`storage/` and `bootstrap/cache/` need nothing special. At `755` the owner is
+already the user PHP runs as, so the application can write to them.
+
+**Never use `777`.** It grants write access to every account on a shared server.
+It is not required here, and nothing in this deployment asks for it.
+
+### Applying them
+
+The archive ships two tools. Use whichever your account supports.
+
+**With shell access** (cPanel → Terminal, or SSH):
+
 ```bash
-find storage bootstrap/cache -type d -exec chmod 755 {} \;
-find storage bootstrap/cache -type f -exec chmod 644 {} \;
+cd /home/<account>/gsf-website
+bash set-permissions.sh
 ```
 
-Do not use `777`. On shared hosting the web server runs as your own user, so
-`755` is sufficient and `777` is a genuine risk.
+For the split layout in Option B, pass the document root as a second argument so
+the served files are covered too:
+
+```bash
+bash set-permissions.sh /home/<account>/gsf-website /home/<account>/public_html
+```
+
+**Without shell access:** upload `fix-permissions.php` next to `index.php` in
+the document root, open `https://<domain>/fix-permissions.php` in a browser, and
+**delete it as soon as it has run**. It does the same work and only ever
+tightens: it never sets `777`, and it refuses to touch anything outside the
+application it finds.
+
+Both finish by verifying the two failures that actually take the site down — a
+`storage/` directory the application cannot write to, and a file under `vendor/`
+it cannot read.
+
+### Why this keeps going wrong
+
+The releases before this one were `.zip` files built on Windows, and **a zip
+carries no Unix permission bits**. Extracting one on Linux leaves every file at
+whatever the extractor happens to choose, which is how a previous deployment
+ended up with an unreadable file under `vendor/`: an empty 500 with nothing in
+any Laravel log, because the failure happens before Laravel can register an
+error handler.
+
+The archive is now a `.tar.gz`, which stores the mode of every entry, and
+`tools/build-deployment-archive.sh` normalises them as it writes — `755` on
+directories, `644` on files, and it refuses to produce an archive containing
+anything group- or world-writable. A correctly extracted release therefore
+arrives with the right permissions and needs no repair. Run `set-permissions.sh`
+anyway after any upload that went through cPanel's File Manager, which can still
+reset modes on the files it replaces.
 
 ---
 
@@ -196,9 +294,14 @@ Header always set Content-Security-Policy "default-src 'self'; img-src 'self' da
 ```
 
 Note `frame-src` includes **youtube.com** — the home page embeds four videos,
-and a policy that omits it will blank them with no visible error. Start in
-`Content-Security-Policy-Report-Only` mode and watch for violations before
-enforcing.
+and a policy that omits it will blank them with no visible error. Those frames
+and the contact-page map are held behind cookie consent, so they stay inert
+until the visitor allows them; the policy still has to permit them for the
+moment they are allowed. If analytics is configured, add its host to
+`script-src` and `connect-src` as well.
+
+Start in `Content-Security-Policy-Report-Only` mode and watch for violations
+before enforcing.
 
 ---
 
@@ -213,6 +316,18 @@ enforcing.
   mail **and** the queue cron are both working.
 - `https://<domain>/.env` returns 404, not the file. If it downloads, the
   document root is wrong: stop and fix Section 3 before going further.
+- The cookie banner appears on the first visit. Choose **Reject non-essential**,
+  then open the home page's Featured Videos section: the players must still show
+  the "YouTube content is blocked" placeholder. If a video plays, the consent
+  gate is not working and the site is setting third-party cookies without
+  permission.
+- Choose **Accept all**, reload, and confirm the banner does **not** reappear and
+  the videos now load.
+- `https://<domain>/cookie-policy` renders, and **Cookie settings** in the footer
+  reopens the preferences dialog.
+- `https://<domain>/php-check.php` and `/fix-permissions.php` both return 404.
+  If either still responds, delete it now — they are deployment tools and must
+  not stay online.
 
 ---
 
@@ -333,10 +448,29 @@ Use that same binary in the cron entries in Section 7.
 
 ## 12. Redeploying
 
-For subsequent releases, upload over the application directory but leave
-`.env`, `storage/` and `public/storage` alone, then:
+**Never replace these.** They hold state the archive does not carry:
+
+| Keep | Why |
+| --- | --- |
+| `.env` | your credentials; the archive has none |
+| `storage/` | logs, sessions, cache, and any locally uploaded media |
+| `public/storage` | the symlink into `storage/app/public` |
+| The database | content edited in the admin panel lives only there |
+
+Everything else in the archive replaces its counterpart. If you would rather not
+merge by hand, extract the release beside the live application and swap the
+directories, carrying the four rows above across first.
 
 ```bash
+cd /home/<account>
+tar -xzf gsf-website-<date>.tar.gz          # extracts to gsf-website/
+cp  gsf-website-live/.env         gsf-website/.env
+cp -r gsf-website-live/storage/app/public/. gsf-website/storage/app/public/
+mv  gsf-website-live gsf-website-previous   # the rollback copy
+mv  gsf-website      gsf-website-live
+cd  gsf-website-live
+bash set-permissions.sh
+php artisan storage:link
 php artisan migrate --force
 php artisan config:cache && php artisan route:cache && php artisan view:cache
 ```
@@ -344,3 +478,20 @@ php artisan config:cache && php artisan route:cache && php artisan view:cache
 Always re-run the cache commands: a stale `config:cache` keeps serving the
 previous environment values, which is the most common cause of a deploy that
 appears to have done nothing at all.
+
+### Rolling back
+
+Keep `gsf-website-previous` until the new release has been checked. To go back:
+
+```bash
+cd /home/<account>
+mv gsf-website-live     gsf-website-failed
+mv gsf-website-previous gsf-website-live
+cd gsf-website-live && php artisan config:cache && php artisan route:cache && php artisan view:cache
+```
+
+The document root does not change, so nothing in cPanel needs touching. Note
+that **migrations are not undone by this** — if the release added a migration,
+roll that back first with `php artisan migrate:rollback --step=1` while the new
+release is still in place, or restore the database from the backup you took
+before deploying.

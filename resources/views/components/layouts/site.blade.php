@@ -30,9 +30,12 @@
     @vite(['resources/css/app.css', 'resources/ts/app.ts'])
 
     @if (config('foundation.analytics_domain'))
-        {{-- Privacy-conscious analytics: no cookies, no personal data, and no
-             donation identifiers are ever passed to it. --}}
-        <script defer
+        {{-- Privacy-conscious analytics: no personal data and no donation
+             identifiers are ever passed to it. It is still served inert as
+             `text/plain` and only turned into a real script by
+             resources/ts/consent.ts once analytics consent is given, so the
+             request is never made without it. --}}
+        <script type="text/plain" data-consent-category="analytics" defer
             data-domain="{{ config('foundation.analytics_domain') }}"
             src="{{ config('foundation.analytics_script') }}"></script>
     @endif
@@ -41,6 +44,8 @@
 </head>
 <body class="min-h-screen bg-canvas font-sans text-ink">
     <a href="#main" class="skip-link">Skip to main content</a>
+
+    <x-cookie-consent />
 
     <x-site-header />
 

@@ -68,6 +68,7 @@
                     <li><a href="{{ route('pages.show', 'transparency') }}" @if (url()->current() === route('pages.show', 'transparency')) aria-current="page" @endif class="hover:text-white hover:underline">Transparency</a></li>
                     <li><a href="{{ route('pages.show', 'governance') }}" @if (url()->current() === route('pages.show', 'governance')) aria-current="page" @endif class="hover:text-white hover:underline">Governance</a></li>
                     <li><a href="{{ route('pages.show', 'privacy-policy') }}" @if (url()->current() === route('pages.show', 'privacy-policy')) aria-current="page" @endif class="hover:text-white hover:underline">Privacy Notice</a></li>
+                    <li><a href="{{ route('pages.show', 'cookie-policy') }}" @if (url()->current() === route('pages.show', 'cookie-policy')) aria-current="page" @endif class="hover:text-white hover:underline">Cookie Policy</a></li>
                 </ul>
             </nav>
 
@@ -75,7 +76,13 @@
                 <h2 class="eyebrow text-primary-300">Contact</h2>
                 <address class="mt-4 space-y-2 text-sm not-italic">
                     @if ($settings['contact.address'] ?? null)
-                        <p>{{ $settings['contact.address'] }}<br>{{ $settings['contact.city'] }}, {{ $settings['contact.state'] }}<br>{{ $settings['contact.country'] }}</p>
+                        {{-- Each line is optional on its own: a settings table
+                             filled in part must not take the whole site down. --}}
+                        <p>
+                            {{ $settings['contact.address'] }}<br>
+                            {{ collect([$settings['contact.city'] ?? null, $settings['contact.state'] ?? null])->filter()->implode(', ') }}<br>
+                            {{ $settings['contact.country'] ?? '' }}
+                        </p>
                     @endif
 
                     @if ($settings['contact.email'] ?? null)
@@ -108,7 +115,12 @@
 
         <div class="mt-10 flex flex-col gap-3 border-t border-primary-800 pt-8 text-xs text-primary-300 sm:flex-row sm:items-center sm:justify-between">
             <p>&copy; {{ now()->year }} {{ $settings['org.legal_name'] ?? 'Global Support Foundation' }}. All rights reserved.</p>
-            <p><a href="{{ route('pages.show', 'contact-us') }}" @if (url()->current() === route('pages.show', 'contact-us')) aria-current="page" @endif class="hover:text-white hover:underline">Port Harcourt, Rivers State, Nigeria</a></p>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+                {{-- Reopens the preferences dialog. A button, not a link: it
+                     goes nowhere, and script is what makes it work. --}}
+                <button type="button" data-consent-action="open" class="underline hover:text-white">Cookie settings</button>
+                <p><a href="{{ route('pages.show', 'contact-us') }}" @if (url()->current() === route('pages.show', 'contact-us')) aria-current="page" @endif class="hover:text-white hover:underline">Port Harcourt, Rivers State, Nigeria</a></p>
+            </div>
         </div>
     </div>
 </footer>

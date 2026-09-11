@@ -233,10 +233,11 @@
     <x-donate-cta />
 
     {{-- Featured videos --------------------------------------------------------
-         Carried over from the previous home page. Each frame is lazy-loaded, so
-         four YouTube players cost nothing until the section is scrolled to, and
-         each carries the video's own title because an iframe is announced by
-         that attribute alone. --}}
+         Carried over from the previous home page. Each player is held behind
+         marketing consent, because YouTube sets advertising cookies as soon as
+         one loads; until then the placeholder offers to allow it or to watch on
+         YouTube directly. Each frame carries the video's own title, because an
+         iframe is announced by that attribute alone. --}}
     <section class="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8" aria-labelledby="home-videos">
         <x-section-heading eyebrow="Watch" title="Featured Videos" id="home-videos" />
 
@@ -248,16 +249,15 @@
                 ['id' => 'G65z8p1YNhw', 'title' => 'Giving $100 to Homeless People — Give Back Films'],
             ] as $video)
                 <li>
-                    <div class="aspect-video overflow-hidden rounded-card border border-line bg-sunken">
-                        <iframe
-                            src="https://www.youtube.com/embed/{{ $video['id'] }}"
-                            title="{{ $video['title'] }}"
-                            loading="lazy"
-                            referrerpolicy="strict-origin-when-cross-origin"
-                            allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                            allowfullscreen
-                            class="size-full border-0"></iframe>
-                    </div>
+                    <x-consent-embed
+                        class="aspect-video"
+                        category="marketing"
+                        provider="YouTube"
+                        :title="$video['title']"
+                        :src="'https://www.youtube.com/embed/'.$video['id']"
+                        :href="'https://www.youtube.com/watch?v='.$video['id']"
+                        allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    />
                     <p class="mt-3 text-sm font-medium text-ink">{{ $video['title'] }}</p>
                 </li>
             @endforeach
