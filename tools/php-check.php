@@ -184,8 +184,74 @@ if (! is_file($log)) {
     }
 }
 
-echo "\n", str_repeat('=', 58), "\n";
-if ($missing !== []) {
-    echo "Enable in cPanel -> Select PHP Version -> Extensions: ", implode(', ', $missing), "\n";
+/*
+| The server's own error log
+|--------------------------------------------------------------------------
+| A fatal raised before Laravel registers its handler never reaches
+| storage/logs/laravel.log. Apache writes it here instead, which is why an
+| empty 500 with no Laravel log usually has its explanation in this file.
+*/
+
+echo "\n  Server error log\n";
+$serverLogs = array_values(array_filter([
+    __DIR__.'/error_log',
+    $appRoot.'/error_log',
+    dirname(__DIR__).'/error_log',
+    dirname(__DIR__).'/logs/error_log',
+], 'is_file'));
+
+if ($serverLogs === []) {
+    echo "    none found next to index.php or in the home directory\n";
+} else {
+    foreach (array_slice($serverLogs, 0, 2) as $serverLog) {
+        echo "    ", $serverLog, "\n";
+        $entries = @file($serverLog, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+        foreach (array_slice($entries, -6) as $entry) {
+            echo "      ", substr($entry, 0, 220), "\n";
+        }
+    }
 }
-echo "Delete this file when you are finished with it.\n";
+
+/*
+| Boot attempt
+|--------------------------------------------------------------------------
+| Everything above can pass while the application still cannot start. Loading
+| the autoloader and the bootstrap file is the only way to see the real fatal.
+| The shutdown handler reports it, because a fatal stops this script too.
+*/
+
+echo "\n  Boot attempt\n";
+
+register_shutdown_function(static function () use ($missing): void {
+    $error = error_get_last();
+
+    if ($error !== null && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        echo "    *** FATAL - this is why the site returns 500 ***\n";
+        echo "    ", $error['message'], "\n";
+        echo "    in ", $error['file'], " line ", $error['line'], "\n";
+    }
+
+    if ($missing !== []) {
+        echo "\n  Enable in cPanel -> Select PHP Version -> Extensions: ", implode(', ', $missing), "\n";
+    }
+
+    echo "\n", str_repeat('=', 58), "\n";
+    echo "Delete this file when you are finished with it.\n";
+});
+
+try {
+    require $appRoot.'/vendor/autoload.php';
+    echo "    autoloader           loaded\n";
+
+    $app = require $appRoot.'/bootstrap/app.php';
+    echo "    bootstrap/app.php    loaded\n";
+
+    $app->make(Illuminate\Contracts\Http\Kernel::class);
+    echo "    HTTP kernel          resolved\n";
+    echo "\n    The application boots. If the site still returns 500 the failure\n";
+    echo "    is in handling the request - see the Laravel log above.\n";
+} catch (Throwable $e) {
+    echo "    *** ", get_class($e), " ***\n";
+    echo "    ", $e->getMessage(), "\n";
+    echo "    in ", $e->getFile(), " line ", $e->getLine(), "\n";
+}
