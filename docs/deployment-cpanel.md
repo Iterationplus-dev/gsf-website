@@ -66,9 +66,19 @@ Typical for a primary domain whose document root cannot be moved.
 
 1. Upload and extract to `/home/<account>/gsf-website`.
 2. Move the *contents* of `gsf-website/public/` into `public_html/`.
-3. Edit `public_html/index.php` and repoint the two `require` paths one level
-   further up — replace `__DIR__.'/../'` with `__DIR__.'/../gsf-website/'` in
-   both places.
+3. Edit `public_html/index.php` and repoint **all three** `__DIR__.'/../'`
+   references at the application directory. They are the maintenance check, the
+   autoloader, and `bootstrap/app.php`:
+
+   ```php
+   if (file_exists($maintenance = '/home/<account>/gsf-website/storage/framework/maintenance.php')) {
+   require '/home/<account>/gsf-website/vendor/autoload.php';
+   $app = require_once '/home/<account>/gsf-website/bootstrap/app.php';
+   ```
+
+   Three, not two — missing the maintenance line will not break the site, but
+   missing either of the other two produces a 500 with nothing in the log.
+   `php-check.php` reads these paths back and reports whether they resolve.
 
 Option A is less fragile: a future upload cannot accidentally overwrite the
 adjusted `index.php`.

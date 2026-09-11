@@ -54,6 +54,54 @@ echo str_repeat('-', 58), "\n";
 echo "  This file is in   : ", __DIR__, "\n";
 echo "  Parent directory  : ", dirname(__DIR__), "\n\n";
 
+/*
+| index.php is the authority on where the application lives. Under the split
+| layout its require paths are edited to an absolute location, so reading them
+| is the only reliable way to know what the site actually loads.
+*/
+$indexFile = __DIR__.'/index.php';
+echo "  index.php here    : ", is_file($indexFile) ? 'present' : '*** MISSING ***', "\n\n";
+
+if (is_file($indexFile)) {
+    $source = (string) @file_get_contents($indexFile);
+    preg_match_all('/(?:require|require_once)\s+([^;]+);/', $source, $matches);
+    $targets = $matches[1] ?? [];
+
+    echo "  Paths index.php loads\n";
+    $allFound = true;
+    foreach ($targets as $expression) {
+        $expression = trim($expression);
+
+        if (preg_match("/__DIR__\s*\.\s*'([^']*)'/", $expression, $m)) {
+            $resolved = __DIR__.$m[1];
+        } elseif (preg_match("/'([^']*)'/", $expression, $m)) {
+            $resolved = $m[1];
+        } else {
+            continue;
+        }
+
+        $isMaintenance = str_contains($resolved, 'maintenance');
+        $exists = file_exists($resolved);
+        if (! $exists && ! $isMaintenance) {
+            $allFound = false;
+        }
+
+        $shown = strlen($resolved) > 44 ? '...'.substr($resolved, -41) : $resolved;
+        printf("    %-44s %s\n", $shown, $exists ? 'found' : ($isMaintenance ? 'absent (normal)' : '*** NOT FOUND ***'));
+    }
+
+    if (! $allFound) {
+        echo "\n  *** index.php points at files that are not there. ***\n";
+        echo "  In the split layout EVERY __DIR__.'/../' in index.php must be\n";
+        echo "  changed - there are THREE (maintenance check, autoloader and\n";
+        echo "  bootstrap/app.php), not two.\n";
+    } else {
+        echo "\n  index.php resolves correctly.\n";
+    }
+    echo "\n";
+}
+
+
 $markers = ['artisan', 'vendor/autoload.php', 'bootstrap/app.php', 'storage', 'composer.json', '.env'];
 $appRoot = null;
 foreach ([dirname(__DIR__) => 'the parent directory (expected)', __DIR__ => 'this directory'] as $candidate => $label) {
