@@ -80,10 +80,64 @@ if ($appRoot === null) {
     echo "      /home/<account>/gsf-website/public/   <- document root\n\n";
     echo "  Then point the domain's document root at that public/ folder\n";
     echo "  (cPanel -> Domains). See DEPLOY-CPANEL.md section 3, Option A.\n\n";
+    /*
+    | Find where the archive was actually extracted. Searching two levels down
+    | from the home directory covers both "gsf-website/" and the nested
+    | "gsf-deploy/gsf-website/" that results from extracting into a subfolder.
+    */
+    $home = dirname(__DIR__);
+    $found = [];
+    foreach ((@scandir($home) ?: []) as $entry) {
+        if ($entry === '.' || $entry === '..' || str_starts_with($entry, '.')) {
+            continue;
+        }
+        $level1 = $home.DIRECTORY_SEPARATOR.$entry;
+        if (! is_dir($level1)) {
+            continue;
+        }
+        if (is_file($level1.'/artisan')) {
+            $found[] = $level1;
+            continue;
+        }
+        foreach ((@scandir($level1) ?: []) as $child) {
+            if ($child === '.' || $child === '..') {
+                continue;
+            }
+            $level2 = $level1.DIRECTORY_SEPARATOR.$child;
+            if (is_dir($level2) && is_file($level2.'/artisan')) {
+                $found[] = $level2;
+            }
+        }
+    }
+
+    if ($found !== []) {
+        echo "  The application WAS found, just not where index.php expects it:\n\n";
+        foreach ($found as $path) {
+            echo "      {$path}\n";
+            echo "          public/             : ", is_dir($path.'/public') ? 'yes' : 'MISSING', "\n";
+            echo "          vendor/autoload.php : ", is_file($path.'/vendor/autoload.php') ? 'yes' : 'MISSING', "\n";
+            echo "          .env                : ", is_file($path.'/.env') ? 'yes' : 'missing - create from production.env.template', "\n\n";
+        }
+
+        $best = $found[0];
+        echo "  FIX - choose one:\n\n";
+        echo "  A. Point the document root at it (preferred, nothing else to edit).\n";
+        echo "     cPanel -> Domains -> your domain -> change document root to:\n\n";
+        echo "         {$best}/public\n\n";
+        echo "  B. Keep public_html as the document root.\n";
+        echo "     Copy the CONTENTS of {$best}/public\n";
+        echo "     into ".__DIR__.", then edit index.php there and change\n";
+        echo "     both __DIR__.'/../' paths to:\n\n";
+        echo "         '{$best}/'\n\n";
+    } else {
+        echo "  No 'artisan' file was found under {$home}.\n";
+        echo "  The archive has not been extracted, or was extracted elsewhere.\n\n";
+    }
+
     echo "  Contents of the parent directory:\n";
-    $entries = @scandir(dirname(__DIR__)) ?: [];
-    $entries = array_slice(array_values(array_diff($entries, ['.', '..'])), 0, 30);
-    echo $entries === [] ? "      (empty or unreadable)\n" : "      ".implode("\n      ", $entries)."\n";
+    $entries = @scandir($home) ?: [];
+    $entries = array_values(array_filter(array_diff($entries, ['.', '..']), fn ($e) => ! str_starts_with($e, '.')));
+    echo $entries === [] ? "      (empty or unreadable)\n" : "      ".implode("\n      ", array_slice($entries, 0, 30))."\n";
 } else {
     echo "  Application root  : {$appRoot}\n";
     echo "  Layout            : ", $appRoot === dirname(__DIR__) ? "correct" : "*** this file is inside the application root, not public/ ***", "\n\n";
