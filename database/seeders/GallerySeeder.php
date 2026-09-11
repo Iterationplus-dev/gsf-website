@@ -20,8 +20,8 @@ class GallerySeeder extends Seeder
 {
     public function run(): void
     {
-        foreach ($this->photographs() as $position => [$path, $title, $width, $height]) {
-            Media::firstOrCreate(
+        foreach ($this->photographs() as [$path, $title, $width, $height]) {
+            $media = Media::firstOrCreate(
                 ['path' => $path],
                 [
                     'title' => $title,
@@ -34,6 +34,14 @@ class GallerySeeder extends Seeder
                     'approved' => true,
                 ],
             );
+
+            // A photograph may already exist because it also illustrates a page,
+            // in which case ContentSeeder created it first and without a
+            // collection. Place it in the gallery without touching the title or
+            // alt text, which an editor may since have improved.
+            if ($media->collection !== Media::GALLERY) {
+                $media->forceFill(['collection' => Media::GALLERY, 'approved' => true])->save();
+            }
         }
     }
 
