@@ -206,7 +206,71 @@ enforcing.
 
 ---
 
-## 10. Redeploying
+## 10. Troubleshooting a 500
+
+A 500 is deliberately opaque in production, so the first job is always to read
+the real error rather than guess at it.
+
+```bash
+tail -n 50 storage/logs/laravel.log
+```
+
+If that file is empty or missing, the failure happened before Laravel could log
+anything — look at **cPanel → Metrics → Errors**, or the `error_log` file in the
+document root. As a last resort set `APP_DEBUG=true` in `.env`, reload the page
+once, read the trace, then **set it straight back to `false`**: with it on, the
+error page exposes environment values including database and API credentials.
+
+The two causes below account for almost every 500 on a first deploy. Both were
+reproduced against this codebase, so the symptoms are exact.
+
+### `No application encryption key has been specified`
+
+`APP_KEY` is empty. The archive ships no `.env`, so a freshly copied
+`.env.example` has a blank key.
+
+```bash
+php artisan key:generate
+php artisan config:clear
+```
+
+### `SQLSTATE[42S02]: Base table or view not found: ... sessions`
+
+The database is reachable but the migrations have not run. This application
+stores sessions, cache and the queue in the database, so the **`sessions` table
+is touched on the very first request** — before any page content. Until the
+schema exists, every URL returns 500, including the home page.
+
+```bash
+php artisan migrate --force
+php artisan db:seed --force     # first deploy only
+```
+
+If the message names a different table — `settings`, `redirects`, `contents` —
+the cause is the same: migrations are incomplete. Run `php artisan migrate:status`
+to see what has and has not been applied.
+
+### Other causes, in the order worth checking
+
+1. **Permissions.** `storage/` and `bootstrap/cache/` must be writable by the
+   account. Section 6 has the commands. A read-only `storage/` produces a 500
+   with nothing in the Laravel log, because it cannot write the log either.
+2. **A stale configuration cache.** If `php artisan config:cache` ran before
+   `.env` was complete, the old values are still being served and editing
+   `.env` changes nothing. Run `php artisan config:clear`, then re-cache.
+3. **A missing PHP extension.** `php artisan about` fails loudly and names it.
+   `intl` and `gd` are the two most often absent on shared hosting.
+4. **The wrong document root.** If `https://<domain>/.env` downloads a file
+   rather than returning 404, the document root points at the application
+   directory instead of `public/`. Fix Section 3 before anything else — the
+   environment file is being served to the public.
+5. **A PHP version mismatch.** `Your Composer dependencies require a PHP
+   version >= 8.4.1` means the release was built on a newer PHP than the server
+   runs. See the note in Section 2.
+
+---
+
+## 11. Redeploying
 
 For subsequent releases, upload over the application directory but leave
 `.env`, `storage/` and `public/storage` alone, then:
