@@ -280,9 +280,13 @@ to see what has and has not been applied.
 
 `php-check.php` ships alongside the archive. Upload it to the document root,
 open it in a browser, and it reports the PHP version the **web server** is
-actually using, which extensions are missing, and whether the writable
-directories are writable. **Delete it once you are done** — it is a diagnostic,
-not part of the application.
+actually using, which extensions are missing, **where the application files
+actually are**, and the last error from the Laravel log. **Delete it once you
+are done** — it is a diagnostic, not part of the application.
+
+If its Layout section says *"The application was not found"*, that is the cause
+of the 500: `index.php` loads `vendor/autoload.php` and `bootstrap/app.php`
+from one level above the document root, and they are not there. See Section 3.
 
 If it reports a version below 8.3:
 
