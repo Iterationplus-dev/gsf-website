@@ -9,7 +9,6 @@ on:
 concurrency:
   group: production
   cancel-in-progress: false
-
 env:
   # Must match the PHP version PHP-FPM runs on the server, because the
   # vendor/ directory is built here and shipped as-is.
