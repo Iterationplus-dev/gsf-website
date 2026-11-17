@@ -14,7 +14,7 @@ env:
   # Must match the PHP version PHP-FPM runs on the server, because the
   # vendor/ directory is built here and shipped as-is.
   PHP_VERSION: '8.5'
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
   PHP_EXTENSIONS: mbstring, pdo_mysql, intl, gd, zip, fileinfo, bcmath, curl, openssl
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
           --health-interval=5s --health-timeout=5s --health-retries=20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -41,7 +41,7 @@ jobs:
           extensions: ${{ env.PHP_EXTENSIONS }}
           coverage: none
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -70,7 +70,7 @@ jobs:
     environment: production
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -78,7 +78,7 @@ jobs:
           extensions: ${{ env.PHP_EXTENSIONS }}
           coverage: none
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
