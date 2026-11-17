@@ -126,6 +126,10 @@ jobs:
           app="${{ vars.DEPLOY_PATH }}"
           release="$app/releases/$(date +%Y%m%d%H%M%S)-${{ github.sha }}"
 
+          # A release that fails before going live is removed, so it never
+          # lingers in releases/ or becomes a rollback target.
+          trap 'echo "Deploy failed; removing $release"; rm -rf "$release"' ERR
+
           mkdir -p "$release"
           tar -xzf "$app/release.tgz" -C "$release"
           rm "$app/release.tgz"
@@ -143,6 +147,7 @@ jobs:
           # Atomic switch: Nginx, the queue worker and cron all point at "current".
           ln -sfn "$release" "$app/current.tmp"
           mv -Tf "$app/current.tmp" "$app/current"
+          trap - ERR
 
           # Clears PHP's realpath and OPcache so requests resolve the new release.
           sudo /usr/bin/systemctl reload php${{ env.PHP_VERSION }}-fpm
