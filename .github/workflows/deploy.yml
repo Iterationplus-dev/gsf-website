@@ -1,0 +1,162 @@
+name: Test and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never run two deployments at once; a newer push waits for the current one.
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+env:
+  # Must match the PHP version PHP-FPM runs on the server, because the
+  # vendor/ directory is built here and shipped as-is.
+  PHP_VERSION: '8.5'
+  NODE_VERSION: '20'
+  PHP_EXTENSIONS: mbstring, pdo_mysql, intl, gd, zip, fileinfo, bcmath, curl, openssl
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: gsf_website_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          composer install --prefer-dist --no-interaction --no-progress
+          npm ci
+          npm run build
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Run tests
+        env:
+          DB_HOST: 127.0.0.1
+          DB_USERNAME: root
+          DB_PASSWORD: ''
+        run: php artisan test --compact
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Build production release
+        run: |
+          composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress
+          npm ci
+          npm run build
+
+      - name: Package release
+        run: |
+          tar -czf "$RUNNER_TEMP/release.tgz" \
+            --exclude=./.git \
+            --exclude=./.github \
+            --exclude=./node_modules \
+            --exclude=./tests \
+            --exclude=./storage \
+            --exclude=./.env \
+            --exclude=./public/storage \
+            .
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host production
+            HostName ${{ secrets.SSH_HOST }}
+            Port ${{ secrets.SSH_PORT || 22 }}
+            User ${{ secrets.SSH_USER }}
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+          EOF
+
+      - name: Upload release
+        run: scp "$RUNNER_TEMP/release.tgz" production:${{ vars.DEPLOY_PATH }}/release.tgz
+
+      - name: Activate release
+        run: |
+          ssh production "bash -s" <<'EOF'
+          set -euo pipefail
+
+          app="${{ vars.DEPLOY_PATH }}"
+          release="$app/releases/$(date +%Y%m%d%H%M%S)-${{ github.sha }}"
+
+          mkdir -p "$release"
+          tar -xzf "$app/release.tgz" -C "$release"
+          rm "$app/release.tgz"
+
+          # Persistent state lives outside the release and is shared by all of them.
+          ln -s "$app/shared/.env" "$release/.env"
+          ln -s "$app/shared/storage" "$release/storage"
+
+          cd "$release"
+          php artisan storage:link
+          php artisan migrate --force
+          php artisan optimize
+          php artisan filament:optimize
+
+          # Atomic switch: Nginx, the queue worker and cron all point at "current".
+          ln -sfn "$release" "$app/current.tmp"
+          mv -Tf "$app/current.tmp" "$app/current"
+
+          # Clears PHP's realpath and OPcache so requests resolve the new release.
+          sudo /usr/bin/systemctl reload php${{ env.PHP_VERSION }}-fpm
+
+          # Workers must reload the new code, or receipts use stale templates.
+          php artisan queue:restart
+
+          # Keep the five most recent releases for rollback.
+          cd "$app/releases"
+          ls -1t | tail -n +6 | xargs -r rm -rf
+
+          echo "Deployed $release"
+          EOF
+
+      - name: Check the site responds
+        run: curl --fail --silent --show-error --max-time 30 "${{ vars.APP_URL }}/up"

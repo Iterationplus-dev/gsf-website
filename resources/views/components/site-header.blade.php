@@ -87,7 +87,7 @@
                 class="logo-glow size-[66px] shrink-0 rounded-full border border-line object-cover">
             <span class="hidden min-w-0 leading-tight min-[480px]:block">
                 <span class="block truncate font-serif text-base font-semibold text-ink sm:text-lg">{{ $settings['org.name'] ?? 'Global Support Foundation' }}</span>
-                <span class="block truncate text-[0.7rem] font-semibold tracking-wider text-accent-600 uppercase">Grassroot Entrepreneurship</span>
+                <span class="block truncate text-[0.7rem] font-semibold tracking-wider text-accent-600 uppercase">For Grassroot Entrepreneurship</span>
             </span>
         </a>
 
