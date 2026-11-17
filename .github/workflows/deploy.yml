@@ -138,11 +138,14 @@ jobs:
           ln -s "$app/shared/.env" "$release/.env"
           ln -s "$app/shared/storage" "$release/storage"
 
+          # The server runs several PHP versions; never rely on the default `php`.
+          php="php${{ env.PHP_VERSION }}"
+
           cd "$release"
-          php artisan storage:link
-          php artisan migrate --force
-          php artisan optimize
-          php artisan filament:optimize
+          "$php" artisan storage:link
+          "$php" artisan migrate --force
+          "$php" artisan optimize
+          "$php" artisan filament:optimize
 
           # Atomic switch: Nginx, the queue worker and cron all point at "current".
           ln -sfn "$release" "$app/current.tmp"
@@ -153,7 +156,7 @@ jobs:
           sudo /usr/bin/systemctl reload php${{ env.PHP_VERSION }}-fpm
 
           # Workers must reload the new code, or receipts use stale templates.
-          php artisan queue:restart
+          "$php" artisan queue:restart
 
           # Keep the five most recent releases for rollback.
           cd "$app/releases"
@@ -162,5 +165,8 @@ jobs:
           echo "Deployed $release"
           EOF
 
+      # Skipped until the APP_URL variable is set, i.e. until the domain points
+      # at this server and Nginx serves the site.
       - name: Check the site responds
+        if: vars.APP_URL != ''
         run: curl --fail --silent --show-error --max-time 30 "${{ vars.APP_URL }}/up"
